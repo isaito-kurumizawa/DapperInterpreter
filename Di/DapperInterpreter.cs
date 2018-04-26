@@ -1,19 +1,26 @@
-namespace DapperInterpreter
+namespace Dapper
 {
+    using System;
     using System.Collections.Generic;
-    using System.Data.SqlClient;
+    using System.Reflection;
     using System.Data;
     using System.Linq;
-    using System.Reflection;
-    using System;
+    using System.Data.SqlClient;
     using Dapper;
 
-    public class BaseRepository
+    public partial class DapperInterpreter
     {
         private string _connectionString;
-        public BaseRepository(string connectionString)
+        private string[] _dateTimeNames;
+        public DapperInterpreter(string connectionString)
         {
             _connectionString = connectionString;
+        }
+        
+        public DapperInterpreter(string connectionString, params string[] dateTimeNames)
+        {
+            _connectionString = connectionString;
+            _dateTimeNames = dateTimeNames;
         }
         protected SqlConnection GetOpenConnection()
         {
@@ -109,7 +116,7 @@ namespace DapperInterpreter
             {
                 if (property == keyProperty)
                     continue;
-                if (property.Name == "CreateTime" || property.Name == "UpdateTime")
+                if (this._connectionString.Contains(property.Name))
                     property.SetValue(model, DateTime.Now);
                 result += string.Format("@{0},", property.Name);
             }
