@@ -97,6 +97,8 @@ namespace Dapper
                 // Update
                 var param = new { Key = keyProperty.GetValue(model) };
                 var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToList();
+                if (!updateResults.Any())
+                    throw new Exception("Data matching the key does not exist.");
                 var updateData = updateResults.First();
                 foreach (var mp in model.GetType().GetProperties())
                 {
