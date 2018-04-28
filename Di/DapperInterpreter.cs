@@ -16,28 +16,46 @@ namespace Dapper
         {
             _connectionString = connectionString;
         }
-        
+
         public DapperInterpreter(string connectionString, params string[] dateTimeNames)
         {
             _connectionString = connectionString;
             _dateTimeNames = dateTimeNames;
         }
+
         protected SqlConnection GetOpenConnection()
         {
             var connection = new SqlConnection(_connectionString);
             connection.Open();
             return connection;
         }
+
+        protected IEnumerable<T> Query<T>(string sql, object param)
+        {
+            using (var connection = GetOpenConnection())
+            {
+                var results = connection.Query<T>(sql, param).ToList();
+                return results;
+            }
+        }
+
+        protected int Execute(string sql, object param, CommandType cmdType)
+        {
+            using (var connection = GetOpenConnection())
+            {
+                var results = connection.Execute(sql, param, commandType: cmdType);
+                return results;
+            }
+
+        }
+
         public IEnumerable<T> FindByTypes<T>(T model = default(T))
         {
             var type = typeof(T);
             var columnString = GetColumnString(type.GetProperties());
             var whereString = GetConditionsString<T>(model);
-            using (var connection = GetOpenConnection())
-            {
-                var results = connection.Query<T>(string.Format("SELECT {0} FROM {1} {2}", columnString, type.Name, whereString), model).ToList();
-                return results;
-            }
+            var results = Query<T>(string.Format("SELECT {0} FROM {1} {2}", columnString, type.Name, whereString), model);
+            return results;
         }
 
         public IEnumerable<T> FindByList<T>(List<int> lists)
@@ -47,46 +65,41 @@ namespace Dapper
             var columnString = GetColumnString(properties);
             var keyProperty = GetKeyProperty(properties);
             var param = new { Lists = lists };
-            using (var connection = GetOpenConnection())
-            {
-                var results = connection.Query<T>(string.Format("SELECT {0} FROM {1} WHERE {2} IN @Lists", columnString, type.Name, keyProperty.Name), param).ToList();
-                return results;
-            }
+            var results = Query<T>(string.Format("SELECT {0} FROM {1} WHERE {2} IN @Lists", columnString, type.Name, keyProperty.Name), param);
+            return results;
         }
-
         public bool Update<T>(T model)
         {
             var type = typeof(T);
             var properties = type.GetProperties();
             var keyProperty = GetKeyProperty(properties);
             var resultCount = 0;
-            using (var connection = GetOpenConnection())
+
+            if (CheckIsPropertyDefaultValue(keyProperty, model))
             {
-                if (CheckIsPropertyDefaultValue(keyProperty, model))
-                {
-                    // Insert
-                    var columnString = GetColumnString(model.GetType().GetProperties()).Replace(keyProperty.Name + ",", "");
-                    var values = GetInsertValuesString(model);
-                    resultCount = connection.Execute(string.Format("INSERT INTO {0} ({1}) VALUES ({2})", type.Name, columnString, values), model, commandType: CommandType.Text);
-                }
-                else
-                {
-                    // Update
-                    var param = new { Key = keyProperty.GetValue(model) };
-                    var updateResults = connection.Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToList();
-                    // エラーチェック
-                    var updateData = updateResults.First();
-                    foreach (var mp in model.GetType().GetProperties())
-                    {
-                        var updateValue = mp.GetValue(model);
-                        var updateDataProperty = updateData.GetType().GetProperties().Where(u => u.Name == mp.Name && u.GetMethod.ReturnType == mp.GetMethod.ReturnType).SingleOrDefault();
-                        updateValue = (CheckIsPropertyDefaultValue(mp, model)) ? updateDataProperty.GetValue(updateData) : updateValue;
-                        mp.SetValue(model, updateValue);
-                    }
-                    var setData = GetUpdateValuesString<T>(model);
-                    resultCount = connection.Execute(string.Format("UPDATE {0} SET {1} WHERE {2} = @{2}", type.Name, setData, keyProperty.Name), model, commandType: CommandType.Text);
-                }
+                // Insert
+                var columnString = GetColumnString(model.GetType().GetProperties()).Replace(keyProperty.Name + ",", "");
+                var values = GetInsertValuesString(model);
+                resultCount = Execute(string.Format("INSERT INTO {0} ({1}) VALUES ({2})", type.Name, columnString, values), model, CommandType.Text);
             }
+            else
+            {
+                // Update
+                var param = new { Key = keyProperty.GetValue(model) };
+                var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToList();
+
+                var updateData = updateResults.First();
+                foreach (var mp in model.GetType().GetProperties())
+                {
+                    var updateValue = mp.GetValue(model);
+                    var updateDataProperty = updateData.GetType().GetProperties().Where(u => u.Name == mp.Name && u.GetMethod.ReturnType == mp.GetMethod.ReturnType).SingleOrDefault();
+                    updateValue = (CheckIsPropertyDefaultValue(mp, model)) ? updateDataProperty.GetValue(updateData) : updateValue;
+                    mp.SetValue(model, updateValue);
+                }
+                var setData = GetUpdateValuesString<T>(model);
+                resultCount = Execute(string.Format("UPDATE {0} SET {1} WHERE {2} = @{2}", type.Name, setData, keyProperty.Name), model, CommandType.Text);
+            }
+
             return (resultCount > 0);
         }
 
