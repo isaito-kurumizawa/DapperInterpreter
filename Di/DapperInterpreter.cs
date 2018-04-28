@@ -11,16 +11,26 @@ namespace Dapper
     public partial class DapperInterpreter
     {
         private string _connectionString;
-        private string[] _dateTimeNames;
+        private string[] _createDateTimeNames;
+        private string[] _updateDateTimeNames;
+
+        public DateTime CreateTime { get; set; }
+
+        public DateTime UpdateTime { get; set; }
+
         public DapperInterpreter(string connectionString)
         {
             _connectionString = connectionString;
         }
 
-        public DapperInterpreter(string connectionString, params string[] dateTimeNames)
+        public void AutoSetCreateDateTime(params string[] createDateTime)
         {
-            _connectionString = connectionString;
-            _dateTimeNames = dateTimeNames;
+            _createDateTimeNames = createDateTime;
+        }
+
+        public void AutoSetUpdateDateTime(params string[] updateDateTime)
+        {
+            _updateDateTimeNames = updateDateTime;
         }
 
         protected SqlConnection GetOpenConnection()
@@ -87,7 +97,6 @@ namespace Dapper
                 // Update
                 var param = new { Key = keyProperty.GetValue(model) };
                 var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToList();
-
                 var updateData = updateResults.First();
                 foreach (var mp in model.GetType().GetProperties())
                 {
@@ -99,7 +108,6 @@ namespace Dapper
                 var setData = GetUpdateValuesString<T>(model);
                 resultCount = Execute(string.Format("UPDATE {0} SET {1} WHERE {2} = @{2}", type.Name, setData, keyProperty.Name), model, CommandType.Text);
             }
-
             return (resultCount > 0);
         }
 
@@ -129,7 +137,7 @@ namespace Dapper
             {
                 if (property == keyProperty)
                     continue;
-                if (this._connectionString.Contains(property.Name))
+                if (this._createDateTimeNames.Contains(property.Name) || this._updateDateTimeNames.Contains(property.Name))
                     property.SetValue(model, DateTime.Now);
                 result += string.Format("@{0},", property.Name);
             }
