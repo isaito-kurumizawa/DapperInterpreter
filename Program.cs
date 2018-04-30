@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using mygkrnk.Models;
 using Dapper;
-namespace originalDapeperLib
+namespace Program
 {
     class Program
     {

@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/originalDapeperLib.csproj"
+                "${workspaceFolder}/DapperInterpreter.csproj"
             ],
             "problemMatcher": "$msCompile"
         }
