@@ -11,12 +11,10 @@ namespace Dapper
     public partial class DapperInterpreter
     {
         private string _connectionString;
+
         private string[] _createDateTimeNames;
+
         private string[] _updateDateTimeNames;
-
-        public DateTime CreateTime { get; set; }
-
-        public DateTime UpdateTime { get; set; }
 
         public DapperInterpreter(string connectionString)
         {
@@ -44,7 +42,7 @@ namespace Dapper
         {
             using (var connection = GetOpenConnection())
             {
-                var results = connection.Query<T>(sql, param).ToList();
+                var results = connection.Query<T>(sql, param).ToArray();
                 return results;
             }
         }
@@ -96,7 +94,7 @@ namespace Dapper
             {
                 // Update
                 var param = new { Key = keyProperty.GetValue(model) };
-                var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToList();
+                var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToArray();
                 if (!updateResults.Any())
                     throw new Exception("Data matching the key does not exist.");
                 var updateData = updateResults.First();
@@ -116,8 +114,8 @@ namespace Dapper
         private string GetColumnString(PropertyInfo[] propertyInfo)
         {
             var columnString = string.Empty;
-            var properties = propertyInfo.Where(p => CheckIsPropertyColumType(p)).ToList();
-            properties.Select(p => columnString += string.Format("{0},", p.Name)).ToList();
+            var properties = propertyInfo.Where(p => CheckIsPropertyColumType(p)).ToArray();
+            properties.Select(p => columnString += string.Format("{0},", p.Name)).ToArray();
             return columnString.Substring(0, columnString.Length - 1);
         }
         private string GetConditionsString<T>(T model)
@@ -125,8 +123,8 @@ namespace Dapper
             if (model == null)
                 return "";
             var whereString = "Where ";
-            var properties = model.GetType().GetProperties().Where(p => CheckIsPropertyColumType(p)).ToList();
-            properties.Select(p => whereString += CheckIsPropertyDefaultValue(p, model) ? "" : string.Format("{0}=@{0} AND ", p.Name)).ToList();
+            var properties = model.GetType().GetProperties().Where(p => CheckIsPropertyColumType(p)).ToArray();
+            properties.Select(p => whereString += CheckIsPropertyDefaultValue(p, model) ? "" : string.Format("{0}=@{0} AND ", p.Name)).ToArray();
             return whereString.Substring(0, whereString.Length - 5); ;
         }
 
@@ -151,7 +149,7 @@ namespace Dapper
             var result = string.Empty;
             var properties = model.GetType().GetProperties().Where(p => CheckIsPropertyColumType(p)).ToArray();
             var keyProperty = GetKeyProperty(properties);
-            properties.Select(p => result += (p != keyProperty) ? string.Format("{0} = @{0},", p.Name) : "").ToList();
+            properties.Select(p => result += (p != keyProperty) ? string.Format("{0} = @{0},", p.Name) : "").ToArray();
             return result.Substring(0, result.Length - 1);
         }
 
