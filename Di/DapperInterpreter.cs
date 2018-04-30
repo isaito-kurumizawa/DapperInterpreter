@@ -42,7 +42,7 @@ namespace Dapper
         {
             using (var connection = GetOpenConnection())
             {
-                var results = connection.Query<T>(sql, param).ToArray();
+                var results = connection.Query<T>(sql, param).ToList();
                 return results;
             }
         }
@@ -94,7 +94,7 @@ namespace Dapper
             {
                 // Update
                 var param = new { Key = keyProperty.GetValue(model) };
-                var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param).ToArray();
+                var updateResults = Query<T>(string.Format("SELECT * FROM {0} WHERE {1} = @Key", type.Name, keyProperty.Name), param);
                 if (!updateResults.Any())
                     throw new Exception("Data matching the key does not exist.");
                 var updateData = updateResults.First();
